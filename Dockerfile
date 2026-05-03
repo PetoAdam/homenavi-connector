@@ -11,6 +11,7 @@ WORKDIR /app
 COPY --from=build /out/homenavi-connector /app/homenavi-connector
 COPY web /app/web
 COPY manifest /app/manifest
+RUN mkdir -p /app/config && chown -R 10001:10001 /app
 USER appuser
 EXPOSE 8099
 ENV PORT=8099

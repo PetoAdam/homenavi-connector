@@ -24,8 +24,13 @@ persistence:
   storageClassName: ""
 
 resources: {}
-podSecurityContext: {}
-securityContext: {}
+podSecurityContext:
+  fsGroup: 10001
+  fsGroupChangePolicy: OnRootMismatch
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
 nodeSelector: {}
 tolerations: []
 affinity: {}
