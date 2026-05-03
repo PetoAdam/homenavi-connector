@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connector overview widget • Homenavi</title>
+    <link rel="icon" type="image/png" href="../../assets/icon.png" />
+    <link rel="stylesheet" href="../../assets/homenavi.css" />
+  </head>
+  <body>
+    <main class="hn-widget-page">
+      <section class="hn-card hn-card--widget">
+        <div class="hn-card__body">
+        <div class="hn-row hn-widget-header">
+          <div>
+            <h2 style="margin:0">Connector blinds</h2>
+            <p class="hn-muted hn-small" style="margin:4px 0 0">Overview of all discovered blinds</p>
+          </div>
+        </div>
+        <div id="content" class="hn-list"><div class="hn-empty">Loading blinds…</div></div>
+        </div>
+      </section>
+    </main>
+    <script src="../../assets/app.js"></script>
+    <script>
+      const {
+        fetchJSON,
+        clamp,
+        statusText = (value) => (value == null ? 'Unknown' : String(value)),
+        numberValue = (value, fallback = 0) => {
+          const numeric = Number(value);
+          return Number.isFinite(numeric) ? numeric : fallback;
+        },
+      } = window.connectorApp;
+      const content = document.getElementById('content');
+
+      async function load() {
+        try {
+          const snapshot = await fetchJSON('/api/realtime/snapshot');
+          const devices = snapshot.devices || [];
+          if (!devices.length) {
+            content.innerHTML = '<div class="hn-empty">No blinds available.</div>';
+            return;
+          }
+          content.innerHTML = devices.slice(0, 6).map((device) => {
+            const open = clamp(numberValue(device.open_percent, 0), 0, 100);
+            return `
+              <article class="hn-device">
+                <div class="hn-device__header">
+                  <div>
+                    <h3 class="hn-device__title">${device.name}</h3>
+                    <p class="hn-device__meta">${statusText(device.status)}</p>
+                  </div>
+                  <span class="hn-pill"><span class="hn-dot ${device.online ? 'hn-dot--ok' : 'hn-dot--err'}"></span><span>${Math.round(open)}%</span></span>
+                </div>
+                <div class="hn-progress"><span style="width:${open}%"></span></div>
+              </article>
+            `;
+          }).join('');
+        } catch (error) {
+          content.innerHTML = `<div class="hn-alert hn-alert--err hn-small">${error.message}</div>`;
+        }
+      }
+      load();
+      setInterval(load, 10000);
+    </script>
+  </body>
+</html>

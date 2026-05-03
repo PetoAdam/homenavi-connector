@@ -1,0 +1,25 @@
+services:
+  connector:
+    image: ghcr.io/petoadam/homenavi-connector:${HN_VERSION:-latest}
+    user: "${HN_CONTAINER_UID:-1000}:${HN_CONTAINER_GID:-1000}"
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      - PORT=8099
+      - JWT_PUBLIC_KEY_PATH=/app/keys/jwt_public.pem
+      - CONNECTOR_SETUP_PATH=/app/config/connector.secrets.json
+      - MQTT_BROKER_URL=${HN_MQTT_BROKER_URL:-tcp://emqx:1883}
+      - MQTT_CLIENT_ID=homenavi-connector
+      - MQTT_USERNAME=${HN_MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${HN_MQTT_PASSWORD:-}
+      - LOG_LEVEL=${HN_LOG_LEVEL:-info}
+    volumes:
+      - ${INTEGRATIONS_ROOT:?set INTEGRATIONS_ROOT}/integrations/secrets/connector.secrets.json:/app/config/connector.secrets.json
+      - ${INTEGRATIONS_ROOT:?set INTEGRATIONS_ROOT}/keys/jwt_public.pem:/app/keys/jwt_public.pem:ro
+    networks:
+      - homenavi-network
+
+networks:
+  homenavi-network:
+    external: true
+    name: homenavi-network

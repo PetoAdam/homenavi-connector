@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connector Setup • Homenavi</title>
+    <link rel="icon" type="image/png" href="../assets/icon.png" />
+    <link rel="stylesheet" href="../assets/homenavi.css" />
+  </head>
+  <body>
+    <main class="hn-page">
+      <div class="hn-shell">
+        <div class="hn-topbar">
+          <div class="hn-brand">
+            <a class="hn-brand__icon" href="./dashboard.html" aria-label="Connector">
+              <img src="../assets/icon.png" alt="Connector" />
+            </a>
+            <div class="hn-brand__title">
+              <h1>Connector Setup</h1>
+              <p>Configure local gateway access and validate your Connector key</p>
+            </div>
+          </div>
+          <span class="hn-pill"><span class="hn-dot hn-dot--ok" aria-hidden="true"></span><span>Local LAN mode</span></span>
+        </div>
+
+        <div class="hn-grid">
+          <section class="hn-card">
+            <div class="hn-card__header">
+              <h2>Gateway settings</h2>
+              <p>Use either the Connector bridge on your LAN, or direct Wi-Fi blind IPs if you do not have a separate bridge.</p>
+            </div>
+            <div class="hn-card__body">
+              <form id="setup-form">
+                <div class="hn-form">
+                  <label>
+                    <span class="hn-label">Gateway host, or direct blind IPs</span>
+                    <input id="gateway_host" class="hn-input" name="gateway_host" placeholder="192.168.1.100 or 192.168.64.5, 192.168.64.6" required />
+                  </label>
+                  <label>
+                    <span class="hn-label">Poll interval (seconds)</span>
+                    <input id="poll_interval_sec" class="hn-input" name="poll_interval_sec" type="number" min="5" max="3600" step="1" value="60" required />
+                  </label>
+                  <label class="hn-form__full">
+                    <span class="hn-label">Connector API key</span>
+                    <input id="api_key" class="hn-input" name="api_key" placeholder="12ab345c-d67e-8f" minlength="16" maxlength="16" required />
+                  </label>
+                </div>
+
+                <div class="hn-alert hn-small hn-muted hn-spacer-top">
+                  Open the Connector app, go to <strong>About</strong>, then tap the screen five times to reveal the 16-character local API key. Keep the <strong>-</strong> characters exactly as shown.
+                </div>
+
+                <div class="hn-alert hn-small hn-muted hn-spacer-top">
+                  <strong>If you have a bridge</strong>, enter its LAN IP or hostname. <strong>If you do not have a bridge</strong>, enter the direct Wi-Fi blind IPs as a comma-separated list. A <strong>60 second</strong> poll interval is a good default.
+                </div>
+
+                <div class="hn-actions">
+                  <button id="save-button" class="hn-btn hn-btn--primary" type="submit">Save and verify</button>
+                  <button id="sync-button" class="hn-btn" type="button">Run sync</button>
+                  <a href="./dashboard.html" class="hn-btn">Open dashboard</a>
+                </div>
+              </form>
+
+              <div id="notice" class="hn-alert hn-small hn-muted hn-spacer-top">Loading setup…</div>
+              <div class="hn-alert hn-small hn-muted hn-spacer-top">
+                <strong>Debug log</strong>
+                <pre id="debug-log" class="hn-debug-log"></pre>
+              </div>
+            </div>
+          </section>
+
+          <aside class="hn-card">
+            <div class="hn-card__header">
+              <h2>Setup notes</h2>
+              <p>Expected Connector workflow.</p>
+            </div>
+            <div class="hn-card__body">
+              <div class="hn-list">
+                <div class="hn-device">
+                  <h3 class="hn-device__title">1. Pair in the app</h3>
+                  <p class="hn-device__meta">Blinds must already be visible in the Connector app before Homenavi can discover them.</p>
+                </div>
+                <div class="hn-device">
+                  <h3 class="hn-device__title">2. Use the bridge address</h3>
+                  <p class="hn-device__meta">If you have a separate Connector bridge, enter its LAN IP or hostname. If your blinds are direct Wi-Fi models, enter their IPs as a comma-separated list instead.</p>
+                </div>
+                <div class="hn-device">
+                  <h3 class="hn-device__title">3. Save and verify</h3>
+                  <p class="hn-device__meta">The integration verifies the bridge connection before saving and reports how many devices were found.</p>
+                </div>
+                <div class="hn-device">
+                  <h3 class="hn-device__title">4. Test on dashboard</h3>
+                  <p class="hn-device__meta">After a successful sync the blinds appear as native Homenavi devices and widgets.</p>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+
+    <script src="../assets/app.js"></script>
+    <script src="../assets/setup.js"></script>
+  </body>
+</html>

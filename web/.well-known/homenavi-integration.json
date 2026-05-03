@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "connector",
+  "name": "Connector Blinds",
+  "version": "0.1.0",
+  "publisher": "Homenavi Community",
+  "homepage": "https://connector.com",
+  "verified": false,
+  "ui": {
+    "sidebar": {
+      "enabled": true,
+      "path": "/ui/dashboard.html",
+      "label": "Connector",
+      "icon": "/assets/icon.png"
+    },
+    "setup": {
+      "enabled": true,
+      "path": "/ui/setup.html",
+      "label": "Setup",
+      "icon": "/assets/icon.png"
+    }
+  },
+  "widgets": [
+    {
+      "type": "integration.connector.overview",
+      "display_name": "Connector Blinds Overview",
+      "description": "Quick overview of all discovered Connector blinds.",
+      "default_size_hint": "md",
+      "entry": { "kind": "iframe", "url": "/widgets/connector-overview/" },
+      "requested_scopes": ["integration.connector.read"]
+    },
+    {
+      "type": "integration.connector.device",
+      "display_name": "Connector Blind",
+      "description": "Single-device blind controls and status.",
+      "default_size_hint": "sm",
+      "entry": { "kind": "iframe", "url": "/widgets/connector-device/" },
+      "requested_scopes": ["integration.connector.read", "integration.connector.control"]
+    }
+  ],
+  "device_extension": {
+    "enabled": true,
+    "provider_id": "connector",
+    "protocol": "connector",
+    "discovery_mode": "sync",
+    "supports_pairing": false,
+    "capability_schema_url": "/.well-known/homenavi-capabilities.json"
+  }
+}

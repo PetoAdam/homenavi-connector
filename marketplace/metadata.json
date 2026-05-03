@@ -1,0 +1,19 @@
+{
+  "id": "connector",
+  "name": "Connector Blinds",
+  "version": "0.1.0",
+  "description": "Local Connector / Motionblinds-compatible smart blind integration for Homenavi.",
+  "listen_path": "/integrations/connector",
+  "publisher": "Homenavi Community",
+  "repo_url": "https://github.com/PetoAdam/homenavi-connector",
+  "deployment_artifacts": {
+    "compose": {
+      "file": "compose/docker-compose.integration.yml"
+    }
+  },
+  "image": "ghcr.io/petoadam/homenavi-connector",
+  "assets": {
+    "icon": "web/assets/icon.png"
+  },
+  "images": []
+}

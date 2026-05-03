@@ -1,0 +1,7 @@
+bin/
+dist/
+*.log
+.env
+config/*.json
+integration
+homenavi-connector

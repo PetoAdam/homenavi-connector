@@ -1,0 +1,22 @@
+{
+  "provider": "connector",
+  "protocol": "connector",
+  "capabilities": [
+    {
+      "id": "cover.position",
+      "description": "Open/close percentage for blinds and shades."
+    },
+    {
+      "id": "cover.action",
+      "description": "Open, close, stop and favorite-position commands."
+    },
+    {
+      "id": "cover.tilt",
+      "description": "Tilt control for blinds that expose slat angle."
+    },
+    {
+      "id": "battery",
+      "description": "Battery level and charging state when exposed by the gateway."
+    }
+  ]
+}

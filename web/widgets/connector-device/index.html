@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connector device widget • Homenavi</title>
+    <link rel="icon" type="image/png" href="../../assets/icon.png" />
+    <link rel="stylesheet" href="../../assets/homenavi.css" />
+  </head>
+  <body>
+    <main class="hn-widget-page">
+      <section class="hn-card hn-card--widget">
+        <div class="hn-card__body">
+        <div id="content" class="hn-widget-content"><div class="hn-empty">Loading blind…</div></div>
+        </div>
+      </section>
+    </main>
+    <script src="../../assets/app.js"></script>
+    <script>
+      const {
+        fetchJSON,
+        clamp,
+        statusText = (value) => (value == null ? 'Unknown' : String(value)),
+        batteryText = (value) => (typeof value === 'number' ? `${Math.round(value)}%` : ''),
+        numberValue = (value, fallback = 0) => {
+          const numeric = Number(value);
+          return Number.isFinite(numeric) ? numeric : fallback;
+        },
+      } = window.connectorApp;
+      const content = document.getElementById('content');
+      let isBusy = false;
+
+      function selectedDeviceId(snapshot) {
+        const url = new URL(window.location.href);
+        const requested = url.searchParams.get('device_id');
+        if (requested) return requested;
+        const devices = snapshot.devices || [];
+        return devices[0]?.id || '';
+      }
+
+      async function postCommand(deviceId, state) {
+        await fetchJSON(`/api/device/${encodeURIComponent(deviceId)}/command`, {
+          method: 'POST',
+          body: JSON.stringify({ state }),
+        });
+      }
+
+      function setBusy(next) {
+        isBusy = next;
+        content.querySelectorAll('button, input[type="range"]').forEach((element) => {
+          element.disabled = next;
+        });
+      }
+
+      async function load() {
+        try {
+          const snapshot = await fetchJSON('/api/realtime/snapshot');
+          const deviceId = selectedDeviceId(snapshot);
+          const device = (snapshot.devices || []).find((item) => item.id === deviceId);
+          if (!device) {
+            content.innerHTML = '<div class="hn-empty">No matching blind found.</div>';
+            return;
+          }
+          const open = clamp(numberValue(device.open_percent, 0), 0, 100);
+          const status = statusText(device.status);
+          const battery = device.battery_level != null ? batteryText(device.battery_level) : '';
+          content.innerHTML = `
+            <article class="hn-device hn-device--widget">
+              <div class="hn-device__header">
+                <div>
+                  <h3 class="hn-device__title">${device.name}</h3>
+                  <p class="hn-device__meta">${device.blind_type || device.device_type || 'Blind'}</p>
+                </div>
+                <span class="hn-pill"><span class="hn-dot ${device.online ? 'hn-dot--ok' : 'hn-dot--err'}"></span><span>${status}</span></span>
+              </div>
+              <div class="hn-progress"><span style="width:${open}%"></span></div>
+              <p class="hn-muted hn-small hn-widget-summary">Open ${Math.round(open)}%${battery ? ` · Battery ${battery}` : ''}</p>
+              <div class="hn-range">
+                <label class="hn-label">Open
+                  <input id="position" type="range" min="0" max="100" step="1" value="${Math.round(open)}" ${isBusy ? 'disabled' : ''} />
+                </label>
+                <output id="position-output">${Math.round(open)}%</output>
+              </div>
+              <div class="hn-actions">
+                <button id="open" type="button" class="hn-btn hn-btn--primary" ${isBusy ? 'disabled' : ''}>Open</button>
+                <button id="stop" type="button" class="hn-btn" ${isBusy ? 'disabled' : ''}>Stop</button>
+                <button id="close" type="button" class="hn-btn" ${isBusy ? 'disabled' : ''}>Close</button>
+              </div>
+            </article>
+          `;
+          const position = document.getElementById('position');
+          const output = document.getElementById('position-output');
+          position.addEventListener('input', () => {
+            output.textContent = `${position.value}%`;
+          });
+          position.addEventListener('change', async () => {
+            setBusy(true);
+            try {
+              await postCommand(device.id, { open_percent: Number(position.value) });
+              await load();
+            } finally {
+              setBusy(false);
+            }
+          });
+          for (const action of ['open', 'stop', 'close']) {
+            document.getElementById(action).addEventListener('click', async () => {
+              setBusy(true);
+              try {
+                await postCommand(device.id, { action });
+                await load();
+              } finally {
+                setBusy(false);
+              }
+            });
+          }
+        } catch (error) {
+          content.innerHTML = `<div class="hn-alert hn-alert--err hn-small">${error.message}</div>`;
+        }
+      }
+      load();
+      setInterval(load, 10000);
+    </script>
+  </body>
+</html>

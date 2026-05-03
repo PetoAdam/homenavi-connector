@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connector Dashboard • Homenavi</title>
+    <link rel="icon" type="image/png" href="../assets/icon.png" />
+    <link rel="stylesheet" href="../assets/homenavi.css" />
+  </head>
+  <body>
+    <main class="hn-page">
+      <div class="hn-shell">
+        <div class="hn-topbar">
+          <div class="hn-brand">
+            <a class="hn-brand__icon" href="./dashboard.html" aria-label="Connector">
+              <img src="../assets/icon.png" alt="Connector" />
+            </a>
+            <div class="hn-brand__title">
+              <h1>Connector Dashboard</h1>
+              <p>Live view and controls for Connector / Motionblinds blinds</p>
+            </div>
+          </div>
+          <span id="gateway-pill" class="hn-pill"><span id="gateway-dot" class="hn-dot" aria-hidden="true"></span><span id="gateway-pill-text">Gateway: unknown</span></span>
+        </div>
+
+        <section class="hn-card hn-section-card">
+          <div class="hn-card__body">
+            <div class="hn-toolbar">
+              <div id="gateway-meta" class="hn-toolbar__meta hn-muted hn-small">Loading gateway details…</div>
+              <div class="hn-actions hn-actions--compact">
+                <button id="refresh-button" class="hn-btn hn-btn--primary" type="button">Trigger sync now</button>
+                <a href="./setup.html" class="hn-btn">Open setup</a>
+              </div>
+            </div>
+
+            <div class="hn-kpis" id="summary-grid"></div>
+
+            <div id="notice" class="hn-alert hn-small hn-muted hn-spacer-top">Loading dashboard…</div>
+            <div class="hn-alert hn-small hn-muted hn-spacer-top">
+              <strong>Debug log</strong>
+              <pre id="debug-log" class="hn-debug-log"></pre>
+            </div>
+          </div>
+        </section>
+
+        <section class="hn-card">
+          <div class="hn-card__header">
+            <h2>Discovered blinds</h2>
+            <p>Native Homenavi devices mirrored from the local Connector gateway.</p>
+          </div>
+          <div class="hn-card__body">
+            <div id="device-list" class="hn-list"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="../assets/app.js"></script>
+    <script src="../assets/dashboard.js"></script>
+  </body>
+</html>
