@@ -1,0 +1,31 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/petoadam/homenavi-connector
+  tag: ""
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8099
+
+containerPort: 8099
+
+env: {}
+envFromSecrets: []
+
+persistence:
+  enabled: false
+  existingClaim: ""
+  mountPath: /app/config
+  accessModes:
+    - ReadWriteOnce
+  size: 256Mi
+  storageClassName: ""
+
+resources: {}
+podSecurityContext: {}
+securityContext: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
