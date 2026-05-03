@@ -255,7 +255,7 @@ func (s *setupStore) save(cfg setupConfig) error {
 	if err := cfg.validate(); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o750); err != nil {
 		return err
 	}
 	payload, err := json.MarshalIndent(cfg, "", "  ")
