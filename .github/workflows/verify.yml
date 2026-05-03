@@ -1,0 +1,67 @@
+name: Verify Integration
+
+on:
+  push:
+    branches: ["**"]
+    tags:
+      - "v*"
+  pull_request:
+    branches: ["main"]
+  workflow_call:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./go.mod
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Homenavi verify
+        uses: PetoAdam/homenavi/.github/actions/integration-verify@main
+        with:
+          manifest_path: manifest/homenavi-integration.json
+
+      - name: gosec
+        run: |
+          set -euo pipefail
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.0
+          "$(go env GOPATH)/bin/gosec" ./...
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          tags: homenavi-integration:latest
+
+      - name: Export Docker image archive
+        run: |
+          set -euo pipefail
+          docker save homenavi-integration:latest -o /tmp/homenavi-integration.tar
+
+      - name: Trivy image scan
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v /tmp:/tmp \
+            aquasec/trivy:0.69.3 image \
+            --input /tmp/homenavi-integration.tar \
+            --format table \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --vuln-type os,library \
+            --severity CRITICAL,HIGH

@@ -1,0 +1,32 @@
+name: Publish Docker Image
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Homenavi release
+        uses: PetoAdam/homenavi/.github/actions/integration-release@main
+        with:
+          image_name: homenavi-connector
+          ghcr_username: ${{ github.actor }}
+          ghcr_token: ${{ secrets.GITHUB_TOKEN }}
+          manifest_path: manifest/homenavi-integration.json
+          metadata_path: marketplace/metadata.json
+          marketplace_api_url: https://marketplace.homenavi.org
