@@ -7,7 +7,7 @@ Local Homenavi integration for Connector / Motionblinds-compatible smart blinds.
 - Local LAN control without cloud dependency
 - Native Homenavi device sync through the `connector` protocol
 - Best-effort local realtime updates via Motionblinds-style UDP multicast, with polling fallback
-- Setup page for gateway host and 16-character Connector API key
+- Setup page for gateway discovery, host selection, and 16-character Connector API key
 - Overview and single-device widgets for blind control
 - MQTT HDP bridge for native device state, metadata and commands
 
@@ -17,13 +17,15 @@ Local Homenavi integration for Connector / Motionblinds-compatible smart blinds.
 2. Navigate to the About screen.
 3. Tap the screen five times to reveal the 16-character local API key.
 4. Install the integration and open the setup page.
-5. Enter the gateway bridge IP/hostname and API key, then save.
+5. Use LAN discovery or enter the gateway bridge IP/hostname and API key, then save.
 
 Notes:
 
 - The API key must include the `-` characters exactly as shown in the app, for example `12ab345c-d67e-8f`.
+- The integration now keeps a stable MAC-based identity for each blind even if the device host/IP changes.
 - If you have a separate Connector bridge, the gateway host is its LAN address, not your phone and not an external cloud hostname.
 - If you do not have a separate bridge and your blinds are direct Wi-Fi models, enter their LAN IPs as a comma-separated list.
+- The setup page can attempt broadcast discovery on the local LAN and fill the host list automatically when endpoints respond.
 - A polling interval of about `60` seconds is the recommended baseline fallback. When multicast push is available, state updates can arrive earlier without waiting for the next poll.
 
 ## Development

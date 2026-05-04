@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -300,6 +301,7 @@ type gatewayState struct {
 type blindDevice struct {
 	ID             string        `json:"id"`
 	MAC            string        `json:"mac"`
+	ExternalID     string        `json:"external_id,omitempty"`
 	Host           string        `json:"host,omitempty"`
 	Name           string        `json:"name"`
 	DeviceType     string        `json:"device_type,omitempty"`
@@ -378,17 +380,22 @@ func (s *deviceStore) replace(gateway gatewayState, devices []blindDevice) (remo
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	seen := make(map[string]struct{}, len(devices))
+	next := make(map[string]blindDevice, len(devices)+len(s.devices))
 	for _, device := range devices {
 		seen[device.ID] = struct{}{}
-	}
-	for id := range s.devices {
-		if _, ok := seen[id]; !ok {
-			removed = append(removed, id)
+		if existing, ok := s.devices[device.ID]; ok {
+			device = mergeBlindDevice(existing, device)
 		}
-	}
-	next := make(map[string]blindDevice, len(devices))
-	for _, device := range devices {
 		next[device.ID] = device
+	}
+	for id, existing := range s.devices {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		existing.Online = false
+		existing.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		next[id] = existing
+		removed = append(removed, id)
 	}
 	s.devices = next
 	s.gateway = gateway
@@ -559,6 +566,25 @@ func registerAPI(mux *http.ServeMux, auth *authGuard, bridge *connectorBridge) {
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
+	})
+	mux.HandleFunc("/api/discover", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !auth.requireRole(w, r, "admin") {
+			return
+		}
+		gateways, err := discoverConnectorGateways(r.Context())
+		if err != nil {
+			writeJSONError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"gateways": gateways,
+			"hosts":    gatewayHosts(gateways),
+			"count":    len(gateways),
+		})
 	})
 	mux.HandleFunc("/api/sync", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -833,7 +859,7 @@ func (b *connectorBridge) handleRealtimePacket(payload []byte, src *net.UDPAddr)
 		return
 	}
 
-	mac := firstNonEmpty(stringValue(message, "mac"), stringValue(dataMap(message), "mac"))
+	mac := normalizeConnectorMAC(firstNonEmpty(stringValue(message, "mac"), stringValue(dataMap(message), "mac")))
 	if mac == "" {
 		return
 	}
@@ -851,7 +877,7 @@ func (b *connectorBridge) handleRealtimePacket(payload []byte, src *net.UDPAddr)
 
 	host := current.Host
 	if src != nil && src.IP != nil {
-		host = firstNonEmpty(host, src.IP.String())
+		host = src.IP.String()
 	}
 	updated := blindDeviceFromResponse(message, current.MAC, current.DeviceType, host)
 	updated = mergeBlindDevice(current, updated)
@@ -881,28 +907,49 @@ func (b *connectorBridge) syncOnce(ctx context.Context) error {
 
 	gateway, devices, err := probeGateway(ctx, cfg)
 	if err != nil {
+		autoCfg, discovered, discoveryErr := rediscoverGatewayHosts(ctx, cfg)
+		if discoveryErr == nil && len(discovered) > 0 && autoCfg.GatewayHost != cfg.GatewayHost {
+			log.Printf("sync retrying with rediscovered hosts: old=%q new=%q", cfg.GatewayHost, autoCfg.GatewayHost)
+			gateway, devices, err = probeGateway(ctx, autoCfg)
+			if err == nil {
+				cfg = autoCfg
+				if saveErr := b.setup.save(cfg); saveErr != nil {
+					log.Printf("rediscovered host save warning: %v", saveErr)
+				}
+			}
+		}
+	}
+	if err != nil {
 		state := gatewayState{Host: cfg.GatewayHost, Available: false, LastError: err.Error(), LastSyncAt: time.Now().UTC().Format(time.RFC3339)}
 		b.store.setGateway(state)
 		b.publishAdapterStatus(false, err.Error())
 		return err
 	}
-	removed := b.store.replace(gateway, devices)
+	offline := b.store.replace(gateway, devices)
 	b.publishAdapterStatus(true, fmt.Sprintf("ok: %d devices", len(devices)))
-	for _, id := range removed {
-		b.clearRetainedTopics(id)
-		b.publishJSON(fmt.Sprintf("homenavi/hdp/device/event/%s", id), map[string]any{
-			"schema":    "hdp.v1",
-			"type":      "event",
-			"device_id": id,
-			"event":     "device_removed",
-			"data":      map[string]any{},
-			"ts":        nowMillis(),
-		}, false)
-	}
 	for _, device := range devices {
 		b.publishDevice(device, "")
 	}
+	for _, id := range offline {
+		if stale, ok := b.store.get(id); ok {
+			b.publishDevice(stale, "")
+		}
+	}
 	return nil
+}
+
+func rediscoverGatewayHosts(ctx context.Context, cfg setupConfig) (setupConfig, []gatewayState, error) {
+	discovered, err := discoverConnectorGateways(ctx)
+	if err != nil {
+		return cfg, nil, err
+	}
+	hosts := gatewayHosts(discovered)
+	if len(hosts) == 0 {
+		return cfg, discovered, errors.New("no discovered hosts")
+	}
+	updated := cfg
+	updated.GatewayHost = strings.Join(hosts, ", ")
+	return updated.normalized(), discovered, nil
 }
 
 func (b *connectorBridge) dispatchDeviceCommand(ctx context.Context, deviceID string, req deviceCommandRequest, corr string) (blindDevice, error) {
@@ -1081,7 +1128,9 @@ func (b *connectorBridge) publishDevice(device blindDevice, corr string) {
 		"schema":       "hdp.v1",
 		"type":         "metadata",
 		"device_id":    device.ID,
+		"external_id":  firstNonEmpty(device.ExternalID, strings.TrimPrefix(device.ID, protocolName+"/")),
 		"protocol":     protocolName,
+		"name":         device.Name,
 		"manufacturer": "Connector",
 		"model":        firstNonEmpty(device.BlindType, device.DeviceType),
 		"description":  firstNonEmpty(device.Description, "Connector smart blind"),
@@ -1162,6 +1211,111 @@ func newConnectorClientForHost(cfg setupConfig, host string) *connectorClient {
 	cfg = cfg.normalized()
 	cfg.GatewayHost = strings.TrimSpace(host)
 	return newConnectorClient(cfg)
+}
+
+func discoverConnectorGateways(ctx context.Context) ([]gatewayState, error) {
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if err := enableBroadcast(conn); err != nil {
+		return nil, err
+	}
+	body, err := json.Marshal(map[string]any{
+		"msgType": "GetDeviceList",
+		"msgID":   newMsgID(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := conn.WriteToUDP(body, &net.UDPAddr{IP: net.IPv4bcast, Port: udpSendPort}); err != nil {
+		return nil, err
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	buffer := make([]byte, maxResponseSize)
+	byHost := map[string]gatewayState{}
+	for {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if err := conn.SetReadDeadline(deadline); err != nil {
+			return nil, err
+		}
+		n, src, err := conn.ReadFromUDP(buffer)
+		if err != nil {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				break
+			}
+			return nil, err
+		}
+		if src == nil || src.IP == nil {
+			continue
+		}
+		var response map[string]any
+		if err := json.Unmarshal(buffer[:n], &response); err != nil {
+			continue
+		}
+		if responseType(response) != "GetDeviceListAck" {
+			continue
+		}
+		if err := checkActionResult(response); err != nil {
+			continue
+		}
+		host := strings.TrimSpace(src.IP.String())
+		if host == "" {
+			continue
+		}
+		byHost[host] = gatewayState{
+			Host:            host,
+			GatewayMAC:      firstNonEmpty(stringValue(response, "mac"), byHost[host].GatewayMAC),
+			DeviceType:      firstNonEmpty(stringValue(response, "deviceType"), byHost[host].DeviceType),
+			ProtocolVersion: firstNonEmpty(stringValue(response, "ProtocolVersion"), byHost[host].ProtocolVersion),
+			FirmwareVersion: firstNonEmpty(stringValue(response, "fwVersion"), byHost[host].FirmwareVersion),
+			Available:       true,
+			DeviceCount:     len(dataSlice(response)),
+			LastSyncAt:      time.Now().UTC().Format(time.RFC3339),
+		}
+	}
+	if len(byHost) == 0 {
+		return nil, errors.New("no Connector endpoints responded to broadcast discovery")
+	}
+	gateways := make([]gatewayState, 0, len(byHost))
+	for _, gateway := range byHost {
+		gateways = append(gateways, gateway)
+	}
+	sort.Slice(gateways, func(i, j int) bool {
+		return gateways[i].Host < gateways[j].Host
+	})
+	return gateways, nil
+}
+
+func gatewayHosts(gateways []gatewayState) []string {
+	hosts := make([]string, 0, len(gateways))
+	for _, gateway := range gateways {
+		host := strings.TrimSpace(gateway.Host)
+		if host == "" {
+			continue
+		}
+		hosts = append(hosts, host)
+	}
+	sort.Strings(hosts)
+	return hosts
+}
+
+func enableBroadcast(conn *net.UDPConn) error {
+	rawConn, err := conn.SyscallConn()
+	if err != nil {
+		return err
+	}
+	var sockErr error
+	if err := rawConn.Control(func(fd uintptr) {
+		sockErr = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+	}); err != nil {
+		return err
+	}
+	return sockErr
 }
 
 func (c *connectorClient) getDeviceList(ctx context.Context) ([]connectorDeviceRef, error) {
@@ -1355,12 +1509,14 @@ func blindDeviceFromResponse(response map[string]any, fallbackMAC, fallbackType,
 	data := dataMap(response)
 	deviceType := firstNonEmpty(stringValue(response, "deviceType"), fallbackType)
 	mac := firstNonEmpty(stringValue(response, "mac"), fallbackMAC)
+	externalID := normalizeConnectorMAC(mac)
 	blindTypeCode := intValue(data, "type")
 	blindType := blindTypeName(blindTypeCode)
-	name := friendlyName(mac, blindType)
+	name := friendlyName(externalID, blindType)
 	device := blindDevice{
-		ID:            deviceID(mac),
+		ID:            deviceID(externalID),
 		MAC:           mac,
+		ExternalID:    externalID,
 		Host:          host,
 		Name:          name,
 		DeviceType:    deviceType,
@@ -1404,6 +1560,7 @@ func mergeBlindDevice(current, incoming blindDevice) blindDevice {
 	merged := incoming
 	merged.ID = firstNonEmpty(incoming.ID, current.ID)
 	merged.MAC = firstNonEmpty(incoming.MAC, current.MAC)
+	merged.ExternalID = firstNonEmpty(incoming.ExternalID, current.ExternalID)
 	merged.Host = firstNonEmpty(incoming.Host, current.Host)
 	merged.Name = firstNonEmpty(incoming.Name, current.Name)
 	merged.DeviceType = firstNonEmpty(incoming.DeviceType, current.DeviceType)
@@ -1978,7 +2135,34 @@ func gatewayStatusName(value int) string {
 }
 
 func deviceID(mac string) string {
-	return protocolName + "/" + mac
+	canonical := normalizeConnectorMAC(mac)
+	if canonical == "" {
+		canonical = strings.ToLower(strings.TrimSpace(mac))
+	}
+	return protocolName + "/" + canonical
+}
+
+func normalizeConnectorMAC(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(trimmed))
+	for _, r := range trimmed {
+		switch {
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r >= 'a' && r <= 'f':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'F':
+			b.WriteRune(r + ('a' - 'A'))
+		}
+	}
+	if b.Len() == 0 {
+		return strings.ToLower(trimmed)
+	}
+	return b.String()
 }
 
 func envOrDefault(key, fallback string) string {

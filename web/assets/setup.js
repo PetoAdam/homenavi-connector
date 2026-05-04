@@ -90,6 +90,7 @@
   };
 
   const form = document.getElementById('setup-form');
+  const discoverButton = document.getElementById('discover-button');
   const saveButton = document.getElementById('save-button');
   const syncButton = document.getElementById('sync-button');
   const notice = document.getElementById('notice');
@@ -184,8 +185,41 @@
     }
   }
 
+  discoverButton.addEventListener('click', async () => {
+    discoverButton.disabled = true;
+    setNotice('Scanning the LAN for Connector endpoints…', 'muted');
+    try {
+      appendDebug('Starting LAN discovery');
+      const result = await fetchJSON('/api/discover');
+      const gateways = Array.isArray(result.gateways) ? result.gateways : [];
+      const hosts = Array.isArray(result.hosts) ? result.hosts.filter(Boolean) : [];
+      appendDebug('LAN discovery result', {
+        gateways: gateways.length,
+        hosts,
+      });
+      if (!hosts.length) {
+        setNotice('No Connector endpoints responded to discovery. If your blinds do not advertise on the LAN, enter the host manually.', 'error');
+        return;
+      }
+      document.getElementById('gateway_host').value = hosts.join(', ');
+      saveDraft();
+      const details = gateways.map((gateway) => {
+        const parts = [gateway.host];
+        if (gateway.gateway_mac) parts.push(gateway.gateway_mac);
+        if (gateway.device_count != null) parts.push(`${gateway.device_count} devices`);
+        return parts.filter(Boolean).join(' · ');
+      }).join(' | ');
+      setNotice(`Discovered ${hosts.length} Connector endpoint(s). Review the hosts and save to verify. ${details}`, 'ok');
+    } catch (error) {
+      setNotice(`Discovery failed: ${error.message}`, 'error');
+    } finally {
+      discoverButton.disabled = false;
+    }
+  });
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    discoverButton.disabled = true;
     saveButton.disabled = true;
     setNotice('Saving settings and verifying bridge access…', 'muted');
     try {
@@ -211,6 +245,7 @@
     } catch (error) {
       setNotice(`Save failed: ${error.message}`, 'error');
     } finally {
+      discoverButton.disabled = false;
       saveButton.disabled = false;
     }
   });
