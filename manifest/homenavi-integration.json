@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "connector",
   "name": "Connector Blinds",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "Homenavi Community",
   "homepage": "https://connector.com",
   "verified": false,
