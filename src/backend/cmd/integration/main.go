@@ -32,7 +32,7 @@ const (
 	protocolName          = "connector"
 	defaultPort           = "8099"
 	defaultSetupPath      = "config/connector.secrets.json"
-	defaultMQTTBroker     = "tcp://emqx:1883"
+	defaultMQTTBroker     = "mqtt://mqtt-broker:1883"
 	defaultPollInterval   = 60
 	udpSendPort           = 32100
 	multicastListenAddr   = "238.0.0.18"
@@ -1049,7 +1049,7 @@ func buildCommandData(device blindDevice, req deviceCommandRequest) (map[string]
 }
 
 func newMQTTClient(bridge *connectorBridge) (mqtt.Client, error) {
-	broker := strings.TrimSpace(envOrDefault("MQTT_BROKER_URL", defaultMQTTBroker))
+	broker := normalizeMQTTBrokerURL(envOrDefault("MQTT_BROKER_URL", defaultMQTTBroker))
 	if broker == "" {
 		return nil, errors.New("MQTT_BROKER_URL is empty")
 	}
@@ -1079,6 +1079,17 @@ func newMQTTClient(bridge *connectorBridge) (mqtt.Client, error) {
 		return nil, token.Error()
 	}
 	return client, nil
+}
+
+func normalizeMQTTBrokerURL(raw string) string {
+	broker := strings.TrimSpace(raw)
+	if broker == "" {
+		return defaultMQTTBroker
+	}
+	if strings.HasPrefix(broker, "mqtt://") {
+		return "tcp://" + strings.TrimPrefix(broker, "mqtt://")
+	}
+	return broker
 }
 
 func (b *connectorBridge) handleMQTTCommand(_ mqtt.Client, msg mqtt.Message) {

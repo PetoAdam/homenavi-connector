@@ -8,7 +8,7 @@ services:
       - PORT=8099
       - JWT_PUBLIC_KEY_PATH=/app/keys/jwt_public.pem
       - CONNECTOR_SETUP_PATH=/app/config/connector.secrets.json
-      - MQTT_BROKER_URL=${HN_MQTT_BROKER_URL:-tcp://emqx:1883}
+      - MQTT_BROKER_URL=${MQTT_BROKER_URL:-mqtt://mqtt-broker:1883}
       - MQTT_CLIENT_ID=homenavi-connector
       - MQTT_USERNAME=${HN_MQTT_USERNAME:-}
       - MQTT_PASSWORD=${HN_MQTT_PASSWORD:-}
