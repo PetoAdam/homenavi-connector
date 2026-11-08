@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="../../assets/icon.png" />
     <link rel="stylesheet" href="../../assets/homenavi.css" />
   </head>
-  <body>
+  <body class="hn-widget-body">
     <main class="hn-widget-page">
       <section class="hn-card hn-card--widget">
         <div class="hn-card__body">
@@ -17,6 +17,7 @@
     </main>
     <script src="../../assets/app.js"></script>
     <script>
+      (() => {
       const {
         fetchJSON,
         clamp,
@@ -119,6 +120,7 @@
       }
       load();
       setInterval(load, 10000);
+      })();
     </script>
   </body>
 </html>
