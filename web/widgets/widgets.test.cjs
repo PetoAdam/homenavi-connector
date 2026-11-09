@@ -70,3 +70,8 @@ test('widgets show empty states when no devices are available', async () => {
     assert.match(elements.get('content').innerHTML, /No (blinds available|matching blind found)/);
   }
 });
+
+test('Connector widgets request compact dashboard sizes', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(webDir, '../manifest/homenavi-integration.json'), 'utf8'));
+  assert.deepEqual(manifest.widgets.map((widget) => widget.default_size_hint), ['sm', 'sm']);
+});

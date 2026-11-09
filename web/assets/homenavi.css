@@ -38,6 +38,8 @@ body {
 
 body.hn-widget-body {
   background: transparent;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 a {
@@ -164,6 +166,7 @@ textarea {
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  overflow: visible;
 }
 
 .hn-card--widget:hover {
@@ -533,3 +536,17 @@ strong {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.hn-widget-body .hn-card--widget .hn-card__body { padding: 10px 12px; }
+.hn-widget-body .hn-widget-content { min-height: 0; }
+.hn-widget-body .hn-widget-header { margin-bottom: 8px; }
+.hn-widget-body .hn-widget-header h2 { font-size: 16px; }
+.hn-widget-body .hn-list { gap: 6px; }
+.hn-widget-body .hn-list .hn-device { padding: 8px; }
+.hn-widget-body .hn-device__header { gap: 8px; margin-bottom: 8px; }
+.hn-widget-body .hn-device__title { font-size: 15px; overflow-wrap: anywhere; }
+.hn-widget-body .hn-pill { min-height: 28px; padding: 4px 8px; }
+.hn-widget-body .hn-progress { height: 6px; }
+.hn-widget-body .hn-range { gap: 4px; margin-top: 8px; }
+.hn-widget-body .hn-actions { gap: 6px; margin-top: 8px; }
+.hn-widget-body .hn-actions .hn-btn { flex: 1 1 auto; min-width: 0; width: auto; min-height: 36px; padding: 0 10px; border-radius: 8px; }

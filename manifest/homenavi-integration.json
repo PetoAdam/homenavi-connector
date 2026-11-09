@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "connector",
   "name": "Connector Blinds",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "publisher": "Homenavi Community",
   "homepage": "https://connector.com",
   "verified": false,
@@ -25,7 +25,7 @@
       "type": "integration.connector.overview",
       "display_name": "Connector Blinds Overview",
       "description": "Quick overview of all discovered Connector blinds.",
-      "default_size_hint": "md",
+      "default_size_hint": "sm",
       "entry": { "kind": "iframe", "url": "/widgets/connector-overview/" },
       "requested_scopes": ["integration.connector.read"]
     },
