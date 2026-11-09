@@ -55,6 +55,21 @@ test('overview widget renders devices with the shared script loaded', async () =
   assert.match(elements.get('content').innerHTML, /65%/);
 });
 
+test('overview widget renders multiple devices in its list', async () => {
+  const { elements } = await loadWidget('connector-overview', [blind, { ...blind, id: 'two', name: 'Bedroom blind', open_percent: 30 }]);
+  assert.match(elements.get('content').innerHTML, /Living room blind/);
+  assert.match(elements.get('content').innerHTML, /Bedroom blind/);
+  assert.match(elements.get('content').innerHTML, /30%/);
+});
+
+test('widgets expose their scoped layout classes', () => {
+  for (const [name, layout] of [['connector-overview', 'overview'], ['connector-device', 'device']]) {
+    const html = fs.readFileSync(path.join(__dirname, name, 'index.html'), 'utf8');
+    assert.match(html, /<html\b[^>]*class="hn-widget-root"/);
+    assert.match(html, new RegExp(`class="hn-widget-page hn-widget-page--${layout}"`));
+  }
+});
+
 test('device widget renders controls and sends commands', async () => {
   const { elements, requests } = await loadWidget('connector-device', [blind]);
   assert.match(elements.get('content').innerHTML, /Living room blind/);
